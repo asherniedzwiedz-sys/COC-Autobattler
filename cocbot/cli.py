@@ -195,6 +195,8 @@ def cmd_run(args, input_fn: Callable[[str], str] = input) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m cocbot", description="Clash of Clans farming bot")
     parser.add_argument("-v", "--verbose", action="store_true", help="show debug logging on the console")
+    parser.add_argument("--device", help="device to use, e.g. 127.0.0.1:5555 (BlueStacks shows its address "
+                                         "in Settings > Advanced); overrides ADB_SERIAL in config.py")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("devices", help="check the device connection and Tesseract")
     p = sub.add_parser("screenshot", help="save the current screen (for cutting templates)")
@@ -217,6 +219,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--step", action="store_true", help="dry run where you make the navigation taps yourself")
     args = parser.parse_args(argv)
 
+    if args.device:
+        C.ADB_SERIAL = args.device
     setup_logging(verbose=args.verbose)
     commands = {"devices": cmd_devices, "screenshot": cmd_screenshot, "crop": cmd_crop, "digits": cmd_digits,
                 "calibrate": cmd_calibrate, "templates": cmd_templates, "scan": cmd_scan, "run": cmd_run}

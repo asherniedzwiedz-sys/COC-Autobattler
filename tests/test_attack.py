@@ -34,8 +34,7 @@ def test_qualifying_base():
 
 
 @pytest.mark.parametrize("changes,reason", [
-    ({"gold": 500_000}, "outside"),
-    ({"gold": 1_200_000}, "outside"),
+    ({"gold": 500_000}, "below"),
     ({"elixir": None}, "unreadable"),
     ({"full_collectors": 1}, "not a dead base"),
     ({"th_level": 18}, "above TH17"),
@@ -51,9 +50,16 @@ def test_th_in_the_open_is_winnable_regardless_of_level():
     assert evaluate(qualifying(th_level=None, th_exposed=True, air_defenses=[Box(0, 0, 9, 9)] * 6))[0]
 
 
-def test_loot_range_is_inclusive():
+def test_loot_minimum_is_inclusive_and_there_is_no_maximum():
     assert evaluate(qualifying(gold=850_000, elixir=850_000))[0]          # exactly 1.7M
+    assert evaluate(qualifying(gold=3_000_000, elixir=2_500_000))[0]      # 5.5M: no upper limit
+
+
+def test_optional_loot_maximum(monkeypatch):
+    monkeypatch.setattr(config, "LOOT_MAX", 2_000_000)
     assert evaluate(qualifying(gold=1_000_000, elixir=1_000_000))[0]      # exactly 2.0M
+    ok, reasons = evaluate(qualifying(gold=1_200_000, elixir=1_000_000))
+    assert not ok and "above" in reasons[0]
 
 
 def test_th_level_from_template_name():

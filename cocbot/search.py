@@ -56,8 +56,10 @@ def evaluate(info: BaseInfo) -> tuple[bool, list[str]]:
     reasons = []
     if info.loot is None:
         reasons.append("loot unreadable")
-    elif not C.LOOT_MIN <= info.loot <= C.LOOT_MAX:
-        reasons.append(f"loot {info.loot:,} outside {C.LOOT_MIN:,}-{C.LOOT_MAX:,}")
+    elif info.loot < C.LOOT_MIN:
+        reasons.append(f"loot {info.loot:,} below {C.LOOT_MIN:,}")
+    elif C.LOOT_MAX is not None and info.loot > C.LOOT_MAX:
+        reasons.append(f"loot {info.loot:,} above {C.LOOT_MAX:,}")
     if info.full_collectors < C.MIN_FULL_COLLECTORS:
         reasons.append(f"{info.full_collectors} full collectors, need {C.MIN_FULL_COLLECTORS} (not a dead base)")
     overmatched = (info.th_level is not None and info.th_level <= C.MAX_TARGET_TH

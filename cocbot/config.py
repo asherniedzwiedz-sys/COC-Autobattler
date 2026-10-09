@@ -14,12 +14,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 # Base targeting (used by the attack phase, built after you approve the army)
 # ---------------------------------------------------------------------------
-LOOT_MIN = 1_700_000          # gold + elixir combined in the base preview, inclusive
-LOOT_MAX = 2_000_000          # gold + elixir combined in the base preview, inclusive
+LOOT_MIN = 1_700_000          # attack only if gold + elixir in the base preview is at least this
+LOOT_MAX = None               # optional upper limit (e.g. 2_000_000); None = no maximum
 MAX_NEXTS = 40                # "Next" presses per search before ending the session
 
 # A base qualifies only when ALL of these hold (see cocbot/search.py):
-#   loot: LOOT_MIN <= gold + elixir <= LOOT_MAX, read the same LOOT_CONFIRM_READS times in a row
+#   loot: gold + elixir >= LOOT_MIN (and <= LOOT_MAX if set), read the same LOOT_CONFIRM_READS times in a row
 #   dead: at least MIN_FULL_COLLECTORS full collectors/mines/drills visible (templates/full_collector*.png)
 #   winnable: its Town Hall sits in the open (no wall within EXPOSED_TH_RADIUS), or its Town Hall
 #             level is at most MAX_TARGET_TH (templates/enemy_th<N>.png) and it shows at most
@@ -127,7 +127,7 @@ DEVICE = "android"            # "android" (phone or emulator via ADB) or "ios" (
 ADB_PATH = None               # None = `adb` on PATH, e.g. r"C:\platform-tools\adb.exe"
 ADB_SERIAL = None             # None = the only connected device; else a serial from `adb devices`
                               # or an address like "127.0.0.1:5555" (connected automatically)
-EMULATOR = None               # None for a phone, or a key of EMULATOR_ADB_ADDRESSES
+EMULATOR = None               # None = find it automatically; or a key of EMULATOR_ADB_ADDRESSES
 EMULATOR_ADB_ADDRESSES = {    # first instance of each emulator; check its settings if it differs
     "bluestacks": "127.0.0.1:5555",
     "ldplayer": "emulator-5554",
@@ -136,6 +136,12 @@ EMULATOR_ADB_ADDRESSES = {    # first instance of each emulator; check its setti
     "mumu": "127.0.0.1:16384",
     "android_studio": "emulator-5554",
 }
+# With nothing set above and no device plugged in, the bot tries these addresses
+# (BlueStacks instances, MEmu, Nox, MuMu) and uses the first emulator that answers.
+EMULATOR_AUTO_ADDRESSES = (
+    "127.0.0.1:5555", "127.0.0.1:5565", "127.0.0.1:5575", "127.0.0.1:5585",
+    "127.0.0.1:21503", "127.0.0.1:62001", "127.0.0.1:16384", "127.0.0.1:7555",
+)
 WDA_URL = "http://localhost:8100"   # iPhone: WebDriverAgent address
 IOS_SCREENSHOT_ROTATION = 0         # iPhone: 0/90/180/270 if screenshots come out sideways
 

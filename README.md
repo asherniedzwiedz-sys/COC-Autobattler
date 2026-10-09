@@ -29,7 +29,8 @@ screen with OpenCV template matching and Tesseract OCR.
   4. After a short delay, send the Blimp and heroes in behind the dragons.
   5. Fire hero abilities on a timer, then wait for the battle to end.
 - **Targets:** a base qualifies only if every rule holds:
-  - gold + elixir is between 1.7M and 2.0M, read the same twice in a row;
+  - gold + elixir is at least 1.7M, read the same twice in a row. There's no
+    upper limit unless you set `LOOT_MAX`;
   - at least 3 full collectors are visible (a dead base);
   - its Town Hall sits in the open, or it is at most TH17 with at most 4 Air
     Defenses.
@@ -50,6 +51,40 @@ screen with OpenCV template matching and Tesseract OCR.
   upgrades once walls are maxed). It never does lab research, moves buildings,
   edits the base, or buys shields/guards.
 
+## Quick start on Windows with BlueStacks
+
+1. **BlueStacks 5:** install it and Clash of Clans inside it, and log in with
+   your Supercell ID. In BlueStacks, go to Settings → Advanced and turn on
+   **Android Debug Bridge (ADB)**. BlueStacks includes its own adb, and the
+   bot finds it, so there's nothing else to install for ADB.
+2. **Python:** install it from python.org. On the first installer screen, tick
+   **"Add python.exe to PATH"**.
+3. **Tesseract:** install the UB Mannheim build and keep the default folder.
+   The bot finds it there.
+4. **This code:** on GitHub, open the repo, switch to the
+   `claude/clash-of-clans-bot-ymaa7u` branch, then Code → Download ZIP. Unzip
+   it, for example to your Desktop.
+5. **A terminal in that folder:** open the unzipped folder (the one with
+   `README.md` in it), click the address bar, type `cmd` and press Enter.
+6. **Install the bot's libraries** (once):
+   ```
+   py -m pip install -r requirements.txt
+   ```
+7. **Check the connection.** With BlueStacks open, run the following. It
+   should say "Connected", and the bot finds BlueStacks by itself:
+   ```
+   py -m cocbot devices
+   ```
+   If it doesn't, look in BlueStacks under Settings → Advanced for "Connect to
+   Android at 127.0.0.1:XXXX", then add that address to every command:
+   `py -m cocbot --device 127.0.0.1:XXXX devices`.
+8. **Use it.** Run `py -m cocbot screenshot` to save the current screen to the
+   `screenshots` folder. `py -m cocbot run --step` is a dry run, and
+   `py -m cocbot run --live` taps for real. The bot asks about donations
+   first.
+
+On Windows, type `py` where the rest of this README says `python`.
+
 ## Setup
 
 Python 3.10 or newer.
@@ -59,14 +94,15 @@ pip install -r requirements.txt
 ```
 
 **ADB (Android platform-tools)**
-- Windows: download platform-tools from developer.android.com, unzip it, and
-  either add it to PATH or set `ADB_PATH` in `cocbot/config.py`.
+- Windows: BlueStacks, LDPlayer, MEmu and Nox ship their own adb, and the bot
+  finds it. Otherwise, download platform-tools from developer.android.com
+  and unzip it to `C:\platform-tools`.
 - macOS: `brew install android-platform-tools`
 - Linux: `sudo apt install adb` (or your distro's equivalent)
 
 **Tesseract OCR**
-- Windows: install the UB Mannheim build. If it isn't on PATH, set
-  `TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"`.
+- Windows: install the UB Mannheim build into its default folder, where the
+  bot finds it. If you installed it elsewhere, set `TESSERACT_CMD`.
 - macOS: `brew install tesseract`
 - Linux: `sudo apt install tesseract-ocr`
 
@@ -87,9 +123,10 @@ PC, but it doesn't let other programs control the game over ADB. Use an
 Android emulator instead. You can still install Clash of Clans inside it from
 the Play Store.
 
-**Emulator:** turn on ADB in the emulator's settings, then set `EMULATOR` to
-`"bluestacks"`, `"ldplayer"`, `"memu"`, `"nox"`, `"mumu"` or `"android_studio"`.
-If your instance uses another port, set `ADB_SERIAL` directly.
+**Emulator:** turn on ADB in the emulator's settings. With nothing plugged
+in, the bot tries the usual emulator addresses (`EMULATOR_AUTO_ADDRESSES`) and
+uses the first that answers. If yours uses another address, pass it with
+`--device 127.0.0.1:XXXX`, or set `ADB_SERIAL` in `cocbot/config.py`.
 
 If your phone is an iPhone, the easiest route is an emulator on your PC
 (BlueStacks 5 or LDPlayer 9). Log in there with your Supercell ID.

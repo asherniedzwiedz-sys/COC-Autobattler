@@ -7,6 +7,7 @@ bot has no way to type into clan chat.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -46,14 +47,48 @@ class Device(ABC):
         return type(self).__name__
 
 
+def adb_candidates() -> list[str]:
+    """Where adb usually lives: Android platform-tools, or the copy an emulator ships with."""
+    local = os.environ.get("LOCALAPPDATA", "")
+    return [
+        r"C:\platform-tools\adb.exe",
+        str(Path(local) / "Android" / "Sdk" / "platform-tools" / "adb.exe") if local else "",
+        r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe",
+        r"C:\Program Files\BlueStacks\HD-Adb.exe",
+        r"C:\LDPlayer\LDPlayer9\adb.exe",
+        r"C:\Program Files\Microvirt\MEmu\adb.exe",
+        r"C:\Program Files\Nox\bin\nox_adb.exe",
+        r"C:\Program Files (x86)\Nox\bin\nox_adb.exe",
+        "/opt/homebrew/bin/adb",
+        "/usr/local/bin/adb",
+        str(Path.home() / "Library" / "Android" / "sdk" / "platform-tools" / "adb"),
+    ]
+
+
 def find_adb(adb_path: str | None = None) -> str:
     adb = adb_path or C.ADB_PATH or shutil.which("adb")
-    if not adb or (not Path(adb).exists() and not shutil.which(adb)):
-        raise DeviceError(
-            "adb not found. Install Android platform-tools and put adb on PATH, "
-            "or set ADB_PATH in cocbot/config.py."
-        )
-    return adb
+    if adb and (Path(adb).exists() or shutil.which(adb)):
+        return adb
+    for candidate in adb_candidates():
+        if candidate and Path(candidate).exists():
+            return candidate
+    raise DeviceError(
+        "adb not found. Install BlueStacks 5 (it includes adb) or Android platform-tools, "
+        "or set ADB_PATH in cocbot/config.py."
+    )
+
+
+def autoconnect_emulator(adb: str) -> str | None:
+    """Try the usual emulator addresses; return the first one that connects as a device."""
+    for address in C.EMULATOR_AUTO_ADDRESSES:
+        try:
+            out = subprocess.run([adb, "connect", address], capture_output=True, text=True, timeout=5).stdout
+        except subprocess.TimeoutExpired:
+            continue
+        if "connected to" in out and list_adb_devices(adb).get(address) == "device":
+            log.info("Found an emulator at %s.", address)
+            return address
+    return None
 
 
 def list_adb_devices(adb: str) -> dict[str, str]:
@@ -236,7 +271,8 @@ class ImageDevice(Device):
 
 
 def open_device() -> Device:
-    """Open the device described in config.py."""
+    """Open the device described in config.py, or find one: a plugged-in phone,
+    an emulator adb already sees, or an emulator at one of the usual addresses."""
     if C.DEVICE == "ios":
         return WdaDevice(C.WDA_URL)
     if C.DEVICE != "android":
@@ -247,4 +283,7 @@ def open_device() -> Device:
             serial = C.EMULATOR_ADB_ADDRESSES[C.EMULATOR]
         except KeyError as e:
             raise DeviceError(f"Unknown EMULATOR {C.EMULATOR!r}; use one of {list(C.EMULATOR_ADB_ADDRESSES)}.") from e
-    return AdbDevice(serial)
+    adb = find_adb()
+    if serial is None and not any(st == "device" for st in list_adb_devices(adb).values()):
+        serial = autoconnect_emulator(adb)
+    return AdbDevice(serial, adb)

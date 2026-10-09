@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -15,8 +17,16 @@ try:
 except ImportError:  # pragma: no cover - reported by available()
     pytesseract = None
 
-if pytesseract is not None and C.TESSERACT_CMD:
-    pytesseract.pytesseract.tesseract_cmd = str(C.TESSERACT_CMD)
+WINDOWS_TESSERACT = (r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                     r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe")
+
+if pytesseract is not None:
+    if C.TESSERACT_CMD:
+        pytesseract.pytesseract.tesseract_cmd = str(C.TESSERACT_CMD)
+    elif shutil.which("tesseract") is None:
+        found = next((p for p in WINDOWS_TESSERACT if Path(p).exists()), None)
+        if found:
+            pytesseract.pytesseract.tesseract_cmd = found
 
 _PAD = 12
 
