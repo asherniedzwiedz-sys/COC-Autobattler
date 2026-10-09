@@ -16,13 +16,6 @@ def test_parse_int(text, expected):
 
 
 @pytest.mark.parametrize("text,expected", [
-    ("Max: 24 000 000", 24_000_000), ("max:12000000", 12_000_000), ("12 000 000", 12_000_000), ("Max:", None),
-])
-def test_parse_max(text, expected):
-    assert ocr.parse_max(text) == expected
-
-
-@pytest.mark.parametrize("text,expected", [
     ("Town Hall (Level 18)", 18), ("Town Hall (level 9)", 9), ("Lvl 5", 5), ("Town Hall", None),
 ])
 def test_parse_level(text, expected):

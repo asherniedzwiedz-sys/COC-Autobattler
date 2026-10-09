@@ -14,12 +14,13 @@ from . import config as C
 from . import ocr
 from .bot import Bot
 from .device import ImageDevice, find_adb, list_adb_devices, open_device
+from .digits import DigitReader
 from .errors import DeviceError
 from .farmer import Farmer
 from .logbook import EventLog, setup_logging
 from .scan import run_scan
 from .templates_spec import report as templates_report
-from .vision import Vision, crop, resolve_region
+from .vision import Vision, crop, record_source_height, resolve_region
 
 log = logging.getLogger("cocbot")
 
@@ -95,7 +96,23 @@ def cmd_crop(args) -> int:
         out = C.TEMPLATE_DIR / f"{args.name}__{n}.png"
         n += 1
     cv2.imwrite(str(out), image[y:y + h, x:x + w])
+    record_source_height(C.TEMPLATE_DIR, out.name, image.shape[0])
     print(f"Saved {out} ({w}x{h})")
+    return 0
+
+
+def cmd_digits(args) -> int:
+    image = cv2.imread(args.image, cv2.IMREAD_COLOR)
+    if image is None:
+        print(f"Cannot read {args.image}")
+        return 1
+    x, y, w, h = (int(v) for v in args.box.split(","))
+    try:
+        saved = DigitReader(C.TEMPLATE_DIR / "digits").save_glyphs(image[y:y + h, x:x + w], args.text)
+    except ValueError as e:
+        print(f"Nothing saved: {e}")
+        return 1
+    print(f"Saved {len(saved)} glyphs: {', '.join(p.name for p in saved)}")
     return 0
 
 
@@ -118,7 +135,8 @@ def cmd_calibrate(args) -> int:
         if box is None:
             print(f"  {key:<20} (anchor '{spec[1]}' not on screen)")
             continue
-        text = ocr.read_text(crop(screen, box)) if ocr.available() else "(no OCR)"
+        text = (ocr.read_chars(crop(screen, box), vision.digits) if key.endswith(("_amount", "_count"))
+                else ocr.read_text(crop(screen, box))) if ocr.available() else "(no OCR)"
         cv2.rectangle(canvas, (box.x, box.y), (box.x2, box.y2), (0, 200, 255), 2)
         cv2.putText(canvas, key, (box.x, box.y2 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 200, 255), 1)
         print(f"  {key:<20} {box} -> {text!r}")
@@ -174,6 +192,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("name", help="template name, e.g. res_gem")
     p.add_argument("--box", help="x,y,w,h in pixels instead of dragging a box with the mouse")
     p.add_argument("--replace", action="store_true", help="overwrite instead of adding a variant")
+    p = sub.add_parser("digits", help="cut digit glyphs (for reading numbers) out of a screenshot")
+    p.add_argument("image")
+    p.add_argument("box", help="x,y,w,h in pixels around a number, e.g. the gold amount")
+    p.add_argument("text", help="exactly what the number shows, e.g. '11 012 576' or '1/6'")
     p = sub.add_parser("calibrate", help="draw template matches and text regions with their readings")
     p.add_argument("--image", help="use a saved screenshot instead of the live screen")
     sub.add_parser("templates", help="list which features have the templates they need")
@@ -184,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     setup_logging(verbose=args.verbose)
-    commands = {"devices": cmd_devices, "screenshot": cmd_screenshot, "crop": cmd_crop,
+    commands = {"devices": cmd_devices, "screenshot": cmd_screenshot, "crop": cmd_crop, "digits": cmd_digits,
                 "calibrate": cmd_calibrate, "templates": cmd_templates, "scan": cmd_scan, "run": cmd_run}
     try:
         return commands[args.command](args)

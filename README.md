@@ -52,7 +52,8 @@ pip install -r requirements.txt
 - Linux: `sudo apt install tesseract-ocr`
 
 Set the game language to English, since the OCR looks for words like
-"Level" and "Wall".
+"Wall". Numbers are read with digit glyphs rather than Tesseract (see
+[templates/README.md](templates/README.md#digits-templatesdigits)).
 
 ## Connecting the device
 
@@ -65,6 +66,9 @@ if it's the only device. For Wi-Fi debugging, set `ADB_SERIAL = "<phone-ip>:5555
 **Emulator:** turn on ADB in the emulator's settings, then set `EMULATOR` to
 `"bluestacks"`, `"ldplayer"`, `"memu"`, `"nox"`, `"mumu"` or `"android_studio"`.
 If your instance uses another port, set `ADB_SERIAL` directly.
+
+If your phone is an iPhone, the easiest route is an emulator on your PC
+(BlueStacks 5 or LDPlayer 9). Log in there with your Supercell ID.
 
 **iPhone (experimental, untested):** this needs WebDriverAgent running on the
 phone, which you build and sign with Xcode on a Mac. On Windows/Linux, `tidevice`
@@ -100,9 +104,14 @@ The bot finds buttons and icons by matching small images that you crop from
 **your own** device. That way they match your resolution and game version.
 [templates/README.md](templates/README.md) lists each one.
 
+Starter templates are included, cut from a TH18 screen: the storage icons,
+the builder icon and the number digits. They rescale to your screen
+automatically. Everything else you cut yourself:
+
 ```bash
 python -m cocbot screenshot                 # saves screenshots/<time>.png
 python -m cocbot crop screenshots/<file>.png res_gem   # drag a box, press Enter
+python -m cocbot digits screenshots/<file>.png x,y,w,h "11 012 576"   # more digit glyphs
 python -m cocbot templates                  # which features are ready
 python -m cocbot calibrate                  # draws matches + text regions -> logs/calibration.png
 ```

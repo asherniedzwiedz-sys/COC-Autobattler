@@ -6,6 +6,7 @@ templates/README.md). A template may have variants (`btn_close.png`,
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +14,16 @@ import cv2
 import numpy as np
 
 from . import config as C
+
+
+HEIGHTS_FILE = "heights.json"
+
+
+def record_source_height(template_dir: Path, filename: str, height: int) -> None:
+    path = Path(template_dir) / HEIGHTS_FILE
+    heights = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    heights[filename] = int(height)
+    path.write_text(json.dumps(heights, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -92,6 +103,15 @@ class Vision:
         self.threshold = C.MATCH_THRESHOLD if threshold is None else threshold
         self.scales = tuple(scales or C.TEMPLATE_SCALES)
         self._cache: dict[str, list[np.ndarray]] = {}
+        self._digits = None
+
+    @property
+    def digits(self):
+        """DigitReader for templates/digits/ (number reading)."""
+        if self._digits is None:
+            from .digits import DigitReader
+            self._digits = DigitReader(self.dir / "digits")
+        return self._digits
 
     def variant_paths(self, name: str) -> list[Path]:
         base = self.dir / f"{name}.png"
@@ -103,14 +123,22 @@ class Vision:
     def names_with_prefix(self, prefix: str) -> list[str]:
         return sorted({p.stem.split("__")[0] for p in self.dir.glob(f"{prefix}*.png")})
 
-    def templates(self, name: str) -> list[np.ndarray]:
+    def source_heights(self) -> dict[str, int]:
+        """Screen height each template was cut at (templates/heights.json), so a template
+        cut on one device is rescaled to match another (the game's UI scales with height)."""
+        path = self.dir / HEIGHTS_FILE
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+    def templates(self, name: str) -> list[tuple[np.ndarray, int | None]]:
+        """Each variant of `name` with the screen height it was cut at (None if unknown)."""
         if name not in self._cache:
+            heights = self.source_heights()
             images = []
             for path in self.variant_paths(name):
                 img = cv2.imread(str(path), cv2.IMREAD_COLOR)
                 if img is None:
                     raise ValueError(f"Unreadable template {path}")
-                images.append(img)
+                images.append((img, heights.get(path.name)))
             self._cache[name] = images
         return self._cache[name]
 
@@ -125,9 +153,11 @@ class Vision:
                 return []
             area, ox, oy = crop(screen, region), region.x, region.y
         found: list[Match] = []
-        for tpl in self.templates(name):
+        for tpl, source_height in self.templates(name):
+            base = screen.shape[0] / source_height if source_height else 1.0
             for scale in self.scales:
-                t = tpl if scale == 1.0 else cv2.resize(tpl, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+                s = base * scale
+                t = tpl if abs(s - 1.0) < 0.01 else cv2.resize(tpl, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
                 th, tw = t.shape[:2]
                 if th < 4 or tw < 4 or th > area.shape[0] or tw > area.shape[1]:
                     continue

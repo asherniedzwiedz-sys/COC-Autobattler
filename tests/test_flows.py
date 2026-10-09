@@ -37,7 +37,11 @@ def test_storage_fraction():
 def test_storage_max_override(template_dir, monkeypatch):
     monkeypatch.setattr(config, "STORAGE_MAX", {"gold": 12_000_000, "elixir": None, "dark": None})
     from cocbot.state import read_storage
-    assert read_storage(make_screen(), Vision(template_dir), "gold") == Storage(None, 12_000_000)
+    icon = make_icon("troop_home_gold", 40)
+    cv2.imwrite(str(template_dir / "home_gold_icon.png"), icon)
+    screen = paste(make_screen(), icon, 1200, 60)
+    assert read_storage(screen, Vision(template_dir), "gold") == Storage(None, 12_000_000, None)
+    assert read_storage(make_screen(), Vision(template_dir), "gold") == Storage()
 
 
 def test_misread_storage_is_ignored():
@@ -58,24 +62,78 @@ def test_stop_only_when_builders_busy_and_everything_full():
 
 
 @needs_tesseract
-def test_read_home_state_from_screen(template_dir):
+def test_read_home_state_from_screen(template_dir, monkeypatch):
+    monkeypatch.setattr(config, "STORAGE_MAX", {"gold": 10_000_000, "elixir": 10_000_000, "dark": 350_000})
     screen = make_screen()
-    for i, (res, amount, maximum) in enumerate([("gold", "9500000", "10000000"),
-                                                ("elixir", "4200000", "10000000"),
-                                                ("dark", "180000", "350000")]):
+    for i, (res, amount) in enumerate([("gold", "9500000"), ("elixir", "4200000"), ("dark", "180000")]):
         icon = make_icon(f"troop_home_{res}", 40)
         cv2.imwrite(str(template_dir / f"home_{res}_icon.png"), icon)
         y = 60 + i * 80
         paste(screen, icon, 1200, y)
         draw_text(screen, amount, 1040, y + 30)
-        draw_text(screen, f"Max: {maximum}", 1022, y - 2, scale=0.6)
     paste(screen, make_icon("builder"), 600, 10)
-    draw_text(screen, "2/6", 640, 36)
+    draw_text(screen, "2/6", 655, 36)
     home = read_home_state(screen, Vision(template_dir))
-    assert (home.gold.current, home.gold.maximum) == (9_500_000, 10_000_000)
-    assert (home.elixir.current, home.dark.current, home.dark.maximum) == (4_200_000, 180_000, 350_000)
+    assert (home.gold.current, home.elixir.current, home.dark.current) == (9_500_000, 4_200_000, 180_000)
     assert (home.builders_free, home.builders_total) == (2, 6)
     assert storages_to_spend(home) == ["gold"]
+
+
+def _bar_screen(fraction, resource="gold", height=1206):
+    """A storage bar laid out like the game's: it fills from the right, under the icon."""
+    import numpy as np
+    from cocbot.state import FILL_HSV
+    screen = np.full((height, 2622, 3), (40, 60, 30), np.uint8)
+    cx, cy = 2390, 57
+    left, right = (cx + d * height for d in config.BAR_SPAN[resource])
+    cv2.rectangle(screen, (int(left), cy - 20), (int(right), cy + 25), (60, 60, 60), -1)
+    (h1, h2), s, (v1, v2) = FILL_HSV[resource]
+    fill = cv2.cvtColor(np.uint8([[[(h1 + h2) // 2, max(s, 200), (v1 + v2) // 2]]]), cv2.COLOR_HSV2BGR)[0, 0]
+    fill_left = right - fraction * (right - left)
+    cv2.rectangle(screen, (int(fill_left), cy - 20), (int(right), cy + 25), tuple(int(c) for c in fill), -1)
+    return screen, Box(cx - 25, cy - 25, 50, 50)
+
+
+@pytest.mark.parametrize("fraction", [0.39, 0.6, 0.95, 1.0])
+def test_bar_fill(fraction):
+    from cocbot.state import bar_fill
+    screen, icon = _bar_screen(fraction)
+    assert bar_fill(screen, icon, "gold") == pytest.approx(fraction, abs=0.02)
+
+
+def test_bar_fill_hidden_under_icon_reads_low():
+    from cocbot.state import bar_fill
+    screen, icon = _bar_screen(0.05)
+    assert bar_fill(screen, icon, "gold") < 0.5
+
+
+def _real_home_screen():
+    """The real TH18 home screen's HUD (from a user screenshot), placed back on a 2622x1206 canvas."""
+    import numpy as np
+    from pathlib import Path
+    data = Path(__file__).parent / "data"
+    screen = np.zeros((1206, 2622, 3), np.uint8)
+    screen[20:95, 1200:1420] = cv2.imread(str(data / "home_builders.png"))
+    screen[0:300, 2040:2622] = cv2.imread(str(data / "home_storages.png"))
+    return screen
+
+
+def test_real_home_screen_reads_exactly():
+    """Regression test on real game graphics with the committed templates and digit glyphs."""
+    home = read_home_state(_real_home_screen(), Vision(config.PROJECT_ROOT / "templates"))
+    assert (home.gold.current, home.elixir.current, home.dark.current) == (11_012_576, 10_509_457, 67_445)
+    assert (home.builders_free, home.builders_total) == (1, 6)
+    assert home.gold.fraction == pytest.approx(0.386, abs=0.02)
+    assert home.elixir.fraction == pytest.approx(0.374, abs=0.02)
+
+
+def test_real_home_screen_at_emulator_resolution():
+    """Templates cut at 1206 px high still match a 900 px high screen (heights.json scaling)."""
+    small = cv2.resize(_real_home_screen(), (1957, 900), interpolation=cv2.INTER_AREA)
+    home = read_home_state(small, Vision(config.PROJECT_ROOT / "templates"))
+    assert (home.gold.current, home.elixir.current, home.dark.current) == (11_012_576, 10_509_457, 67_445)
+    assert (home.builders_free, home.builders_total) == (1, 6)
+    assert home.gold.fraction == pytest.approx(0.386, abs=0.03)
 
 
 # --- upgrades ----------------------------------------------------------------------
@@ -227,7 +285,9 @@ def test_crop_saves_template_and_variants(tmp_path, monkeypatch):
 
     assert cmd_crop(Args) == 0 and cmd_crop(Args) == 0
     saved = sorted(p.name for p in (tmp_path / "templates").iterdir())
-    assert saved == ["res_gem.png", "res_gem__2.png"]
+    assert saved == ["heights.json", "res_gem.png", "res_gem__2.png"]
+    heights = json.loads((tmp_path / "templates" / "heights.json").read_text())
+    assert heights == {"res_gem.png": 720, "res_gem__2.png": 720}
     assert cv2.imread(str(tmp_path / "templates" / "res_gem.png")).shape == (40, 30, 3)
 
 

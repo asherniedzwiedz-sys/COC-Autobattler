@@ -63,8 +63,16 @@ def read_text(img: np.ndarray, psm: int = 7, whitelist: str | None = None) -> st
     return _tesseract(binarize(img), config).strip()
 
 
-def read_number(img: np.ndarray) -> int | None:
-    return parse_int(read_text(img, whitelist="0123456789"))
+def read_chars(img: np.ndarray, digits=None, whitelist: str = "0123456789") -> str:
+    """Digits (and '/') in `img`. Uses the digit templates when they exist, since
+    Tesseract misreads the game's font; returns "" if a glyph isn't recognised."""
+    if digits is not None and digits.ready():
+        return digits.read(img) or ""
+    return read_text(img, whitelist=whitelist)
+
+
+def read_number(img: np.ndarray, digits=None) -> int | None:
+    return parse_int(read_chars(img, digits))
 
 
 @dataclass(frozen=True)
@@ -120,12 +128,6 @@ def parse_int(text: str) -> int | None:
     """'1 234 567' / '1,234,567' / '1.234.567' -> 1234567."""
     digits = re.sub(r"\D", "", text or "")
     return int(digits) if digits else None
-
-
-def parse_max(text: str) -> int | None:
-    """'Max: 24 000 000' -> 24000000."""
-    m = re.search(r"max\W*([\d\s.,]+)", text or "", re.IGNORECASE)
-    return parse_int(m.group(1)) if m else parse_int(text)
 
 
 def parse_level(text: str) -> int | None:

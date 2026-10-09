@@ -33,9 +33,16 @@ WALLS_MAXED = None            # None = detect from the builder menu; True/False 
 BUILDER_MENU_SCROLLS = 4      # swipes through the builder menu when looking for walls
 SUGGESTED_SKIP_WORDS = ()     # e.g. ("King", "Queen") to never start those suggested upgrades
 MENU_HEADER_WORDS = ("suggested", "upgrades", "other", "builder", "builders", "apprentice")
-# Your storage capacities. Leave None to read the small "Max:" text from the screen,
-# or fill them in (e.g. "gold": 24_000_000) if that text reads unreliably.
+# Your total storage capacities (e.g. "gold": 28_000_000). With these set, fullness is
+# amount / capacity (exact). Left as None, fullness is measured from the storage bar (about +/-2%).
 STORAGE_MAX = {"gold": None, "elixir": None, "dark": None}
+# Storage bars fill from the right, under the icon. Each bar's left and right ends,
+# measured from the centre of its home_*_icon match in screen heights (the game's
+# UI scales with screen height), and how far below that centre the sampled row is.
+# Measured on a TH18 screenshot; check with calibrate.
+BAR_SPAN = {"gold": (-0.258, 0.037), "elixir": (-0.263, 0.032), "dark": (-0.187, 0.032)}
+BAR_ROW = 0.015
+BAR_SCAN_FROM = 0.033         # start reading the fill this far left of the icon centre (past the icon's rim)
 
 # ---------------------------------------------------------------------------
 # Donations
@@ -108,6 +115,7 @@ TESSERACT_CMD = None          # None = `tesseract` on PATH, e.g. r"C:\Program Fi
 OCR_UPSCALE = 3
 OCR_TEXT_MIN_VALUE = 190      # game text is white with a dark outline: min brightness (0-255)
 OCR_TEXT_MAX_SATURATION = 80  # ...and low saturation
+DIGIT_MATCH_THRESHOLD = 0.80  # glyph similarity needed to accept a digit (templates/digits/)
 
 # Text regions. Two forms:
 #   ("screen", x1, y1, x2, y2)           fractions of screen width/height (0..1)
@@ -117,12 +125,9 @@ OCR_TEXT_MAX_SATURATION = 80  # ...and low saturation
 # These are first guesses. Check them with `python -m cocbot calibrate`.
 REGIONS = {
     "home_gold_amount":    ("icon", "home_gold_icon",   -4.2, 0.10, -0.05, 0.90),
-    "home_gold_max":       ("icon", "home_gold_icon",   -4.5, -0.55, -0.40, 0.12),
     "home_elixir_amount":  ("icon", "home_elixir_icon", -4.2, 0.10, -0.05, 0.90),
-    "home_elixir_max":     ("icon", "home_elixir_icon", -4.5, -0.55, -0.40, 0.12),
     "home_dark_amount":    ("icon", "home_dark_icon",   -4.2, 0.10, -0.05, 0.90),
-    "home_dark_max":       ("icon", "home_dark_icon",   -4.5, -0.55, -0.40, 0.12),
-    "builders_count":      ("icon", "builder_icon",      1.00, 0.00, 3.20, 1.00),
+    "builders_count":      ("icon", "builder_icon",      1.40, 0.00, 3.20, 1.00),
     "builder_menu":        ("icon", "builder_icon",     -3.00, 1.00, 9.00, 11.0),
     "selected_name":       ("screen", 0.25, 0.66, 0.75, 0.79),  # "Town Hall (Level 18)"
     "selected_buttons":    ("screen", 0.10, 0.78, 0.90, 1.00),  # buttons under a selected building

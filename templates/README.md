@@ -4,9 +4,16 @@ Crop these from screenshots of **your own** device. Take a screenshot with
 `python -m cocbot screenshot`, then cut a template with
 `python -m cocbot crop <screenshot> <name>`.
 
+Starter templates are already included, cut from a TH18 home screen at
+2622×1206: the storage icons, the builder icon and the digit glyphs. They
+rescale automatically to your screen, because `heights.json` records the
+screen height each template was cut at. If one doesn't match on your device,
+re-cut it there.
+
 Tips:
-- Crop tightly around the icon itself. Leave out numbers, prices and counts,
-  because they change.
+- Crop **inside** the icon: a tight box within the coin or drop, with no
+  background corners, since the village behind them changes. Leave out
+  numbers, prices and counts, because they change too.
 - Running `crop` again with the same name adds a variant (`name__2.png`, ...).
   Any variant counts as a match, which helps when the same icon appears at
   different sizes on different screens.
@@ -36,13 +43,29 @@ Recommended:
 
 | Name | What to crop |
 |---|---|
-| `home_gold_icon` | The gold icon at the right end of the gold bar |
-| `home_elixir_icon` | The elixir icon at the right end of the elixir bar |
-| `home_dark_icon` | The dark elixir icon at the right end of its bar |
+| `home_gold_icon` | Inside the gold coin at the right end of the gold bar |
+| `home_elixir_icon` | Inside the elixir drop at the right end of the elixir bar |
+| `home_dark_icon` | Inside the dark elixir drop at the right end of its bar |
 
-The amount and "Max" text are read from boxes placed relative to these icons
-(`REGIONS` in `cocbot/config.py`). Check that they line up with `calibrate`.
-If the small "Max" text reads badly, fill in `STORAGE_MAX` instead.
+The amount is read from a box to the left of each icon (`REGIONS` in
+`cocbot/config.py`). The game shows no "Max" text, so fullness is measured
+from how far the bar has filled. Bars fill from the right, under the icon.
+That measurement is accurate to about 2%. For exact numbers, put your total
+capacities in `STORAGE_MAX`.
+
+## Digits (`templates/digits/`)
+
+Tesseract misreads the game's number font: it reads 11 012 576 as 1 112 576,
+and Level 18 as Level 13. So numbers are read by matching each character
+against glyphs cut from a real screen. A glyph that isn't a confident match
+makes the whole number "unknown", never a wrong number. To add glyphs from
+your own device:
+
+```bash
+python -m cocbot digits screenshots/<file>.png 2190,40,155,55 "11 012 576"
+```
+
+Give a box around a number and exactly what it shows (digits and `/` only).
 
 ## Upgrades
 
