@@ -16,7 +16,7 @@ from . import config as C
 from .ocr import binarize
 from .vision import Box
 
-CHAR_NAMES = {**{d: d for d in "0123456789"}, "/": "slash"}
+CHAR_NAMES = {**{d: d for d in "0123456789"}, "/": "slash", "+": "plus", "-": "minus"}
 GLYPH_SIZE = 32
 
 
@@ -102,7 +102,7 @@ class DigitReader:
         wanted = [c for c in text if not c.isspace()]
         unknown = [c for c in wanted if c not in CHAR_NAMES]
         if unknown:
-            raise ValueError(f"only digits and '/' can be saved, not {unknown}")
+            raise ValueError(f"only digits, '/', '+' and '-' can be saved, not {unknown}")
         binary = binarize(img)
         boxes = glyph_boxes(binary)
         if len(boxes) != len(wanted):

@@ -1,19 +1,18 @@
-"""The main loop: read storages, upgrade with excess loot, donate, then attack.
-
-Attacking is Phase 2 and is only built after you approve the army proposal;
-until then the loop stops right before the attack step.
-"""
+"""The main loop: read storages, upgrade with excess loot, donate, then attack."""
 from __future__ import annotations
 
 import logging
 
 from . import config as C
+from .army import Army
+from .attack import Attacker
 from .bot import Bot
 from .donate import Donator
 from .errors import (DeviceError, DryRunStop, FlowError, ForbiddenAction, GemSpendBlocked, NotAffordable,
                      NotInGame, StopBot)
 from .ocr import OcrUnavailable
-from .state import HomeState, farming_stop_reason, read_home_state
+from .search import Searcher
+from .state import RESOURCES, HomeState, farming_stop_reason, read_home_state
 from .templates_spec import missing
 from .upgrades import Upgrader
 
@@ -25,6 +24,9 @@ class Farmer:
         self.bot = bot
         self.upgrader = Upgrader(bot)
         self.donator = Donator(bot)
+        self.army = Army(bot)
+        self.searcher = Searcher(bot)
+        self.attacker = Attacker(bot)
         self.cycles = 0
 
     def run(self) -> str:
@@ -91,6 +93,45 @@ class Farmer:
 
     def attack(self) -> None:
         if C.APPROVED_ARMY is None:
-            raise StopBot("No approved army yet. Attacking is built in Phase 2, after you approve "
-                          "the army proposal; stopping before searching for a base.")
-        raise StopBot("Attack phase is not implemented yet.")
+            raise StopBot("No approved army in config.py; stopping before searching for a base.")
+        miss = [n for feature in ("attack", "army", "targeting") for n in missing(self.bot.vision, feature)]
+        if miss:
+            raise StopBot(f"Attacking needs these templates first: {', '.join(miss)} (see templates/README.md).")
+        before = self.read_state()
+        try:
+            self.army.ensure_ready()
+            base = self.searcher.find_base()
+            if base is None:
+                raise StopBot(f"No base qualified in {C.MAX_NEXTS} Nexts; ending the session.")
+            result = self.attacker.attack(base)
+        except DryRunStop as e:
+            raise StopBot(f"Dry run finished; the next step would have been: {e}.") from None
+        except GemSpendBlocked as e:
+            self.bot.on_gem_block(f"attack: {e}")
+            raise StopBot(f"Gem guard blocked a step of the attack ({e}); stopping to be safe.") from None
+        except FlowError as e:
+            self.leave_search()
+            raise StopBot(f"Attack stopped: {e}") from None
+        after = self.read_state()
+        self.bot.events.attack(
+            target_th=base.th_level, loot_gained=loot_gained(before, after), trophies_change=result["trophies"],
+            base_loot={"gold": base.gold, "elixir": base.elixir, "dark": base.dark}, nexts=base.nexts,
+            side=result["side"], air_defenses_zapped=result["air_defenses_zapped"])
+
+    def leave_search(self) -> None:
+        """Best effort: if stuck on a search screen, end it (nothing deployed, no trophies lost)."""
+        try:
+            if self.bot.find("btn_end_battle") is not None:
+                self.searcher.end_search()
+        except Exception as e:  # noqa: BLE001 - already stopping; just record it
+            log.warning("Couldn't leave the search screen: %s", e)
+
+
+def loot_gained(before: HomeState | None, after: HomeState | None) -> dict[str, int | None]:
+    """Change in each storage across the attack (net of the gold spent on searching)."""
+    gained = {}
+    for r in RESOURCES:
+        a = before.storage(r).current if before else None
+        b = after.storage(r).current if after else None
+        gained[r] = b - a if a is not None and b is not None else None
+    return gained

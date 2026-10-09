@@ -11,12 +11,31 @@ screen with OpenCV template matching and Tesseract OCR.
 
 | Phase | What | State |
 |---|---|---|
-| 1 | Device control, gem guard, OCR, storage reading, wall/suggested upgrades, donations, dry run, logging, **account scan** | done |
-| 1 | Army + strategy proposal | waiting on your scan results |
-| 2 | Training the approved army, base search/targeting, attacking, returning home | built after you approve the army |
+| 1 | Device control, gem guard, number reading, storages, wall/suggested upgrades, donations, dry run, logging, account scan | done |
+| 1 | Army and strategy | approved (see below) |
+| 2 | Army check, base search and targeting, the attack, returning home, attack logging | built; needs templates cut on your emulator, then dry runs |
 
-Until an army is approved (`APPROVED_ARMY` in `cocbot/config.py`), `run`
-stops right before it would search for a base.
+## The approved attack
+
+- **Army:** 17 Dragons (level 12), 11 Lightning Spells (level 12), a Battle
+  Blimp carrying the Clan Castle troops, and four heroes: Royal Champion,
+  Grand Warden, Minion Prince and Dragon Duke. You set this up once in the
+  game; the bot only checks that it's full.
+- **Plan:**
+  1. Attack from the edge nearest the enemy Town Hall.
+  2. Drop 4 Lightning Spells on each of the Air Defenses nearest that edge
+     (2 with 11 spells).
+  3. Deploy the dragons in a line along that edge.
+  4. After a short delay, send the Blimp and heroes in behind the dragons.
+  5. Fire hero abilities on a timer, then wait for the battle to end.
+- **Targets:** a base qualifies only if every rule holds:
+  - gold + elixir is between 1.7M and 2.0M, read the same twice in a row;
+  - at least 3 full collectors are visible (a dead base);
+  - its Town Hall sits in the open, or it is at most TH17 with at most 4 Air
+    Defenses.
+
+  Anything the bot can't read counts against the base. After 40 Nexts it
+  ends the session.
 
 ## Things the bot never does
 
@@ -63,6 +82,11 @@ All settings are in `cocbot/config.py`.
 phone in and accept the "Allow USB debugging" prompt. Leave `ADB_SERIAL = None`
 if it's the only device. For Wi-Fi debugging, set `ADB_SERIAL = "<phone-ip>:5555"`.
 
+**Google Play Games for PC won't work.** It's an official way to play on
+PC, but it doesn't let other programs control the game over ADB. Use an
+Android emulator instead. You can still install Clash of Clans inside it from
+the Play Store.
+
 **Emulator:** turn on ADB in the emulator's settings, then set `EMULATOR` to
 `"bluestacks"`, `"ldplayer"`, `"memu"`, `"nox"`, `"mumu"` or `"android_studio"`.
 If your instance uses another port, set `ADB_SERIAL` directly.
@@ -88,15 +112,10 @@ python -m cocbot devices
 python -m cocbot scan
 ```
 
-The scan is guided and read-only, and it never taps. At each step you open
-a screen on the device (home, Town Hall selected, Army tab, Train Troops,
-Brew Spells, Siege, Hero Hall) and press Enter. It saves each screenshot to
-`scans/<timestamp>/`, reads the Town Hall level (plus storages and builders,
-if the storage templates exist), and writes `report.md` and `report.json`.
-
-Send that folder back (commit it to this branch, or attach the screenshots).
-I'll read the troop, spell, hero and equipment levels, then propose the army
-and strategy for you to approve.
+The scan is guided and read-only, and it never taps. At each step you open a
+screen and press Enter. It saves the screenshots to `scans/<timestamp>/`,
+along with what it could read. (For this account, the army was chosen from
+screenshots sent directly instead.)
 
 ## Templates
 
@@ -129,6 +148,17 @@ python -m cocbot run --live     # real taps (asks you to type "live" first)
 
 On startup the bot asks: `Auto-donate to clan mate requests? (yes/no)`.
 
+Recommended order on a new device:
+1. Cut the templates (see [templates/README.md](templates/README.md)), then
+   run `python -m cocbot templates` until every feature says "ready".
+2. Run `python -m cocbot calibrate` on the home screen and on a search
+   screen, and check every box and the cyan battle-map diamond.
+3. Run `python -m cocbot run --step` a few times. You make the menu taps
+   yourself while the bot reads each base and logs its decision and its whole
+   attack plan. It never deploys. Every base it looks at is saved in
+   `logs/searches/`, which is handy for cutting more templates.
+4. Run `python -m cocbot run --live`.
+
 Each loop:
 1. Read gold, elixir and dark elixir storages and the builder count.
 2. If gold or elixir is at or above `STORAGE_THRESHOLD` (95%), upgrade walls
@@ -138,7 +168,11 @@ Each loop:
    attacks would waste loot.
 4. Donate (only if enabled): elixir and dark elixir troops from `DONATE_TROOPS`.
    A slot showing a gem price is skipped.
-5. Attack (Phase 2).
+5. Attack:
+   1. Check the army is full, waiting up to 10 minutes for it to refill.
+   2. Search for a qualifying base.
+   3. Run the attack.
+   4. Return home and log the target TH, loot gained and trophy change.
 
 A plain dry run reads the real screen but stops each flow at its first tap,
 because the next step depends on that tap. `--step` lets you make the

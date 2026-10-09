@@ -18,9 +18,51 @@ LOOT_MIN = 1_700_000          # gold + elixir combined in the base preview, incl
 LOOT_MAX = 2_000_000          # gold + elixir combined in the base preview, inclusive
 MAX_NEXTS = 40                # "Next" presses per search before ending the session
 
-# Filled in once you approve the army proposal. While this is None, `run`
-# stops before attacking.
-APPROVED_ARMY = None
+# A base qualifies only when ALL of these hold (see cocbot/search.py):
+#   loot: LOOT_MIN <= gold + elixir <= LOOT_MAX, read the same LOOT_CONFIRM_READS times in a row
+#   dead: at least MIN_FULL_COLLECTORS full collectors/mines/drills visible (templates/full_collector*.png)
+#   winnable: its Town Hall sits in the open (no wall within EXPOSED_TH_RADIUS), or its Town Hall
+#             level is at most MAX_TARGET_TH (templates/enemy_th<N>.png) and it shows at most
+#             MAX_AIR_DEFENSES Air Defenses (templates/air_defense*.png)
+LOOT_CONFIRM_READS = 2
+MIN_FULL_COLLECTORS = 3
+MAX_TARGET_TH = 17
+MAX_AIR_DEFENSES = 4
+EXPOSED_TH_RADIUS = 2.5       # in Town Hall widths
+SAVE_SEARCH_SCREENSHOTS = True  # keep each base looked at in logs/searches/ (for cutting templates)
+
+# The approved army (Phase 1 proposal, approved by you). Slot templates are
+# templates/slot_<name>.png, cut from the troop bar at the bottom of a battle.
+APPROVED_ARMY = {
+    "troops": {"dragon": 17},
+    "spells": {"lightning": 11},
+    "siege": "battle_blimp",      # carries the Clan Castle troops to the core
+    "heroes": ("royal_champion", "grand_warden", "minion_prince", "dragon_duke"),
+}
+
+# ---------------------------------------------------------------------------
+# Attack plan: zap Air Defenses, then a line of dragons with heroes behind
+# ---------------------------------------------------------------------------
+LIGHTNING_PER_AD = 4          # lightning spells dropped on each Air Defense
+# The battle map is a diamond. Its centre and half-width/half-height, in screen
+# heights from the screen centre (the map scales with screen height). Check with
+# `python -m cocbot calibrate` on a search screen: the cyan diamond should trace
+# the outer edge of the deployable grass.
+MAP_CENTER = (0.0, -0.01)
+MAP_HALF_SIZE = (0.66, 0.49)
+DEPLOY_OUTSET = 0.015         # deploy this far outside the diamond (screen heights)
+DEPLOY_EDGE_SPAN = (0.15, 0.85)  # spread units along this part of an edge
+TROOP_BAR_TOP = 0.82          # never deploy below this height (fraction of screen): the troop bar
+DEFAULT_SIDE = "top_left"     # used when the enemy Town Hall isn't found
+DEPLOY_TAP_DELAY = 0.12       # seconds between deploy taps
+ZAP_DELAY = 1.0               # seconds after each Air Defense's lightning before the next step
+HERO_DELAY = 3.0              # seconds after the dragons before the siege and heroes go in
+ABILITY_TIMES = {             # seconds after deployment to fire each hero's ability
+    "grand_warden": 10, "royal_champion": 14, "minion_prince": 14, "dragon_duke": 14,
+}
+BATTLE_TIMEOUT = 200          # seconds to wait for the battle to end before surrendering
+ARMY_READY_TIMEOUT = 600      # seconds to wait for the army to be full before ending the session
+ARMY_CHECK_INTERVAL = 30
 
 # ---------------------------------------------------------------------------
 # Storages, walls and suggested upgrades
@@ -133,6 +175,12 @@ REGIONS = {
     "selected_buttons":    ("screen", 0.10, 0.78, 0.90, 1.00),  # buttons under a selected building
     "upgrade_confirm":     ("screen", 0.25, 0.55, 0.98, 0.97),  # price button in the upgrade window
     "popup_center":        ("screen", 0.25, 0.20, 0.75, 0.75),  # where gem offers pop up
+    "loot_gold_amount":    ("icon", "loot_gold_icon",    1.10, 0.05, 6.50, 0.95),  # search: "Available Loot"
+    "loot_elixir_amount":  ("icon", "loot_elixir_icon",  1.10, 0.05, 6.50, 0.95),
+    "loot_dark_amount":    ("icon", "loot_dark_icon",    1.10, 0.05, 6.50, 0.95),
+    "army_troops_count":   ("icon", "army_troops_icon",  1.05, 0.00, 6.00, 1.00),  # "340/340"
+    "army_spells_count":   ("icon", "army_spells_icon",  1.05, 0.00, 5.00, 1.00),  # "11/11"
+    "result_trophies":     ("icon", "result_trophy_icon", -4.0, 0.00, -0.05, 1.00),
     "chat_panel":          ("screen", 0.00, 0.08, 0.45, 1.00),
     "donate_window":       ("screen", 0.20, 0.05, 1.00, 0.97),
 }

@@ -119,6 +119,38 @@ class Bot:
         self.device.tap(*point)
         time.sleep(C.TAP_SETTLE)
 
+    def tap_button(self, button: Match, action: Action, why: str, *, screen: np.ndarray | None = None) -> None:
+        """Tap a button found by template, refusing if a gem price shows on it."""
+        screen = self.screen() if screen is None else screen
+        gems = self.guard.find_gems(screen, button.box.relative(*C.PRICE_BUTTON_SPAN))
+        if gems:
+            raise GemSpendBlocked(f"'{button.name}' shows a gem price; not pressing it")
+        self.tap(button.center, action, why, screen=screen)
+
+    def tap_many(self, points: Sequence[tuple[int, int]], action: Action, why: str) -> None:
+        """Several quick taps (deploying units). Guards run once for the whole batch;
+        these always count as committing taps, so a dry run logs them all and stops."""
+        points = [(int(x), int(y)) for x, y in points]
+        if not points:
+            return
+        self._pre_tap(action, points, None)
+        if self.dry_run:
+            for point in points:
+                self.events.dry_run_action(action.value, why, point)
+            raise DryRunStop(why)
+        for point in points:
+            self.device.tap(*point)
+            time.sleep(C.DEPLOY_TAP_DELAY)
+
+    def wait_gone(self, name: str, timeout: float = 5.0) -> bool:
+        """Wait for a template to disappear (e.g. a screen transition); False on timeout."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self.find(name) is None:
+                return True
+            time.sleep(0.3)
+        return False
+
     def swipe(self, start: tuple[int, int], end: tuple[int, int], action: Action, why: str,
               duration_ms: int = 400) -> None:
         self._pre_tap(action, [start, end], None)

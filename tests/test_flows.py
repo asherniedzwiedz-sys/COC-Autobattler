@@ -236,13 +236,21 @@ def test_donate_list_rejects_spells_and_sieges(monkeypatch):
 
 # --- main loop and CLI --------------------------------------------------------------
 
-def test_farmer_stops_before_attacking_without_approved_army(make_bot, events):
+def test_farmer_stops_without_approved_army(make_bot, events, monkeypatch):
+    monkeypatch.setattr(config, "APPROVED_ARMY", None)
     bot, device = make_bot()
     reason = Farmer(bot).run()
-    assert "approved army" in reason.lower()
+    assert "no approved army" in reason.lower()
     assert device.taps == []
     last = json.loads(events.path.read_text().splitlines()[-1])
-    assert last["type"] == "stop" and "approved army" in last["reason"].lower()
+    assert last["type"] == "stop" and last["reason"] == reason
+
+
+def test_farmer_stops_before_attacking_without_attack_templates(make_bot):
+    bot, device = make_bot()
+    reason = Farmer(bot).run()
+    assert "needs these templates" in reason and "btn_attack" in reason
+    assert device.taps == []
 
 
 def test_farmer_stops_when_builders_busy_and_storages_full(make_bot, monkeypatch, events, template_dir):

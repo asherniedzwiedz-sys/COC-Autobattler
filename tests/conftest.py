@@ -113,10 +113,21 @@ class SequenceDevice(Device):
         return True
 
 
+class TapDevice(SequenceDevice):
+    """Shows screens[n] after n taps (the last one repeats): each tap moves the game on."""
+
+    def screenshot(self) -> np.ndarray:
+        return self.screens[min(len(self.taps), len(self.screens) - 1)].copy()
+
+
 @pytest.fixture(autouse=True)
 def fast(monkeypatch):
     monkeypatch.setattr(config, "TAP_SETTLE", 0)
     monkeypatch.setattr(config, "SWIPE_SETTLE", 0)
+    monkeypatch.setattr(config, "DEPLOY_TAP_DELAY", 0)
+    monkeypatch.setattr(config, "HERO_DELAY", 0)
+    monkeypatch.setattr(config, "ZAP_DELAY", 0)
+    monkeypatch.setattr(config, "SAVE_SEARCH_SCREENSHOTS", False)
 
 
 @pytest.fixture

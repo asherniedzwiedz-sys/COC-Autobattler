@@ -74,6 +74,42 @@ Give a box around a number and exactly what it shows (digits and `/` only).
 | `builder_icon` | The builder icon next to the free/total builder count (top centre) |
 | `btn_upgrade` (optional) | The Upgrade button's arrow icon under a selected building, without its price |
 
+## Army check
+
+| Name | Where | What to crop |
+|---|---|---|
+| `btn_army` | Home, bottom left | The Army button |
+| `army_troops_icon` | Army window | The troop-capacity icon left of `340/340` |
+| `army_spells_icon` | Army window | The spell-capacity icon left of `11/11` |
+
+## Searching
+
+| Name | Where | What to crop |
+|---|---|---|
+| `btn_attack` | Home, bottom left | The Attack! button |
+| `btn_find_match` | Attack menu | The Find a Match button, without its price |
+| `btn_next` | Search screen | The Next button, without its price |
+| `btn_end_battle` | Search screen | The End Battle button |
+| `loot_gold_icon`, `loot_elixir_icon`, `loot_dark_icon` | Search screen, Available Loot | Each resource icon. Then use `calibrate` to check the amount boxes (`loot_*_amount` in `REGIONS`) |
+| `full_collector` | Search screen | A full gold mine, elixir collector or drill. Add variants (`full_collector__2`, ...) for each kind and level you see |
+| `air_defense` | Search screen | An Air Defense. Add a variant per level |
+| `enemy_th<N>` | Search screen | An enemy Town Hall of level N, e.g. `enemy_th16`, `enemy_th17` |
+| `enemy_wall` (optional) | Search screen | A wall piece. Lets the bot spot a Town Hall left in the open |
+
+`run --step` saves every base it looks at to `logs/searches/`. Cut these
+templates from those screenshots.
+
+## Attacking
+
+| Name | Where | What to crop |
+|---|---|---|
+| `slot_dragon`, `slot_lightning` | Troop bar at the bottom of the search/battle screen | Each card's picture, without the count |
+| `slot_battle_blimp`, `slot_royal_champion`, `slot_grand_warden`, `slot_minion_prince`, `slot_dragon_duke` | Troop bar | Each card's picture (anything missing isn't deployed) |
+| `btn_return_home` | Battle results | The Return Home button |
+| `btn_surrender`, `btn_okay` | Battle screen | Used only if a battle runs past `BATTLE_TIMEOUT` |
+| `result_trophy_icon` | Battle results | The trophy icon next to the trophy change. Also cut `+` and `-` glyphs with `digits` |
+| `forbid_boost` | Army window | Boost Army / Boost Heroes, so they're never pressed |
+
 ## Donations (only used if you answer "yes" at startup)
 
 | Name | What to crop |

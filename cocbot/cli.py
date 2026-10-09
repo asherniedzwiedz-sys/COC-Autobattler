@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 import cv2
+import numpy as np
 
 from . import config as C
 from . import ocr
@@ -140,11 +141,22 @@ def cmd_calibrate(args) -> int:
         cv2.rectangle(canvas, (box.x, box.y), (box.x2, box.y2), (0, 200, 255), 2)
         cv2.putText(canvas, key, (box.x, box.y2 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 200, 255), 1)
         print(f"  {key:<20} {box} -> {text!r}")
+    from .attack import EDGES, edge_points, map_corners
+    h, w = screen.shape[:2]
+    corners = map_corners(w, h)
+    diamond = [tuple(round(v) for v in corners[c]) for c in ("top", "right", "bottom", "left")]
+    cv2.polylines(canvas, [np.array(diamond, np.int32)], True, (255, 255, 0), 2)
+    for edge in EDGES:
+        for x, y in edge_points(w, h, edge, 17):
+            cv2.circle(canvas, (x, y), 5, (255, 0, 255), -1)
+    cv2.line(canvas, (0, int(C.TROOP_BAR_TOP * h)), (w, int(C.TROOP_BAR_TOP * h)), (0, 0, 255), 1)
     out = C.LOG_DIR / "calibration.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), canvas)
-    print(f"Saved {out}: green = template matches, orange = text regions. Adjust REGIONS in config.py "
-          f"until each orange box covers its text.")
+    print(f"Saved {out}: green = template matches, orange = text regions, cyan = battle map edge, "
+          f"magenta = deploy points, red = top of the troop bar. On a search screen the cyan diamond "
+          f"should trace the outer edge of the grass; adjust MAP_CENTER / MAP_HALF_SIZE and REGIONS "
+          f"in config.py until everything lines up.")
     return 0
 
 

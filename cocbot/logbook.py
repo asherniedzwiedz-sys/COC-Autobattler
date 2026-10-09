@@ -51,7 +51,8 @@ class EventLog:
 
     def attack(self, target_th: int | None, loot_gained: dict, trophies_change: int | None, **extra) -> None:
         self.record("attack", target_th=target_th, loot_gained=loot_gained, trophies_change=trophies_change, **extra)
-        log.info("ATTACK vs TH%s: loot %s, trophies %+d", target_th, loot_gained, trophies_change or 0)
+        trophies = f"{trophies_change:+d}" if trophies_change is not None else "unknown"
+        log.info("ATTACK vs TH%s: loot %s, trophies %s", target_th or "?", loot_gained, trophies)
 
     def wall_upgrade(self, resource: str, spent: int | None, dry_run: bool) -> None:
         self.record("wall_upgrade", resource=resource, spent=spent, dry_run=dry_run)
