@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 # Base targeting (used by the attack phase, built after you approve the army)
 # ---------------------------------------------------------------------------
-LOOT_MIN = 1_700_000          # attack only if gold + elixir in the base preview is at least this
+LOOT_MIN = 2_000_000          # attack only if gold + elixir in the base preview is at least this
 LOOT_MAX = None               # optional upper limit (e.g. 2_000_000); None = no maximum
 MAX_NEXTS = 40                # "Next" presses per search before ending the session
 

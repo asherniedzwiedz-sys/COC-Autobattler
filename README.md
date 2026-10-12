@@ -29,7 +29,7 @@ screen with OpenCV template matching and Tesseract OCR.
   4. After a short delay, send the Blimp and heroes in behind the dragons.
   5. Fire hero abilities on a timer, then wait for the battle to end.
 - **Targets:** a base qualifies only if every rule holds:
-  - gold + elixir is at least 1.7M, read the same twice in a row. There's no
+  - gold + elixir is at least 2M, read the same twice in a row. There's no
     upper limit unless you set `LOOT_MAX`;
   - at least 3 full collectors are visible (a dead base);
   - its Town Hall sits in the open, or it is at most TH17 with at most 4 Air

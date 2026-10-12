@@ -20,7 +20,7 @@ needs_tesseract = pytest.mark.skipif(not __import__("cocbot.ocr", fromlist=["ava
 
 
 def qualifying(**changes):
-    info = BaseInfo(gold=900_000, elixir=950_000, dark=8_000, full_collectors=5,
+    info = BaseInfo(gold=1_050_000, elixir=1_000_000, dark=8_000, full_collectors=5,
                     air_defenses=[Box(600, 300, 40, 40)] * 3, th_level=16)
     for k, v in changes.items():
         setattr(info, k, v)
@@ -51,14 +51,15 @@ def test_th_in_the_open_is_winnable_regardless_of_level():
 
 
 def test_loot_minimum_is_inclusive_and_there_is_no_maximum():
-    assert evaluate(qualifying(gold=850_000, elixir=850_000))[0]          # exactly 1.7M
+    assert evaluate(qualifying(gold=1_000_000, elixir=1_000_000))[0]      # exactly 2.0M
+    assert not evaluate(qualifying(gold=1_000_000, elixir=999_999))[0]    # just under
     assert evaluate(qualifying(gold=3_000_000, elixir=2_500_000))[0]      # 5.5M: no upper limit
 
 
 def test_optional_loot_maximum(monkeypatch):
-    monkeypatch.setattr(config, "LOOT_MAX", 2_000_000)
-    assert evaluate(qualifying(gold=1_000_000, elixir=1_000_000))[0]      # exactly 2.0M
-    ok, reasons = evaluate(qualifying(gold=1_200_000, elixir=1_000_000))
+    monkeypatch.setattr(config, "LOOT_MAX", 2_500_000)
+    assert evaluate(qualifying(gold=1_500_000, elixir=1_000_000))[0]      # exactly 2.5M
+    ok, reasons = evaluate(qualifying(gold=1_700_000, elixir=1_000_000))
     assert not ok and "above" in reasons[0]
 
 
@@ -169,11 +170,11 @@ def test_search_skips_until_a_base_qualifies(template_dir, events, monkeypatch):
     home = paste(make_screen(), icons["btn_attack"], 60, 600)
     menu = paste(make_screen(), icons["btn_find_match"], 600, 400)
     poor = _search_screen(icons, "300000", "200000", collectors=5)
-    rich = _search_screen(icons, "950000", "900000", collectors=4)
+    rich = _search_screen(icons, "1050000", "1000000", collectors=4)
     device = TapDevice(home, menu, poor, rich)
     bot = Bot(device, Vision(template_dir), events, dry_run=False, auto_donate=False)
     info = Searcher(bot).find_base()
-    assert (info.gold, info.elixir, info.th_level, info.full_collectors, info.nexts) == (950_000, 900_000, 16, 4, 1)
+    assert (info.gold, info.elixir, info.th_level, info.full_collectors, info.nexts) == (1_050_000, 1_000_000, 16, 4, 1)
     assert device.taps == [(78, 618), (618, 418), (1168, 618)]  # Attack!, Find a Match, Next
 
 
